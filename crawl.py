@@ -86,7 +86,7 @@ class AsyncCrawler:
     ):
         self.base_url = base_url
         self.base_domain = urlsplit(base_url).netloc.lower()
-        self.page_data: dict[str, PageData | None] = {}
+        self.page_data: dict[str, PageData] = {}
         self.lock = asyncio.Lock()
         self.max_concurrency = max_concurrency
         self.max_pages = max_pages
@@ -115,7 +115,6 @@ class AsyncCrawler:
                 return False
             if normalized_url in self.page_data:
                 return False
-            self.page_data[normalized_url] = None
             return True
 
     async def get_html(self, url: str) -> str:
@@ -151,8 +150,6 @@ class AsyncCrawler:
             return
         except Exception as e:
             print(f"error crawling {current_url}: {e}")
-            async with self.lock:
-                self.page_data.pop(normalized_current, None)
             return
 
         if self.should_stop:
@@ -160,6 +157,12 @@ class AsyncCrawler:
 
         data = extract_page_data(html, current_url)
         async with self.lock:
+            if len(self.page_data) >= self.max_pages:
+                self.should_stop = True
+                print("Reached maximum number of pages to crawl.")
+                for task in self.all_tasks:
+                    task.cancel()
+                return
             self.page_data[normalized_current] = data
 
         tasks = []
@@ -179,7 +182,7 @@ class AsyncCrawler:
 
     async def crawl(self) -> dict[str, PageData]:
         await self.crawl_page(self.base_url)
-        return {k: v for k, v in self.page_data.items() if v is not None}
+        return self.page_data
 
 
 async def crawl_site_async(
