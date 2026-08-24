@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from crawl import crawl_site_async
+from json_report import write_json_report
 
 
 async def main():
@@ -27,20 +28,8 @@ async def main():
         base_url, max_concurrency=max_concurrency, max_pages=max_pages
     )
 
-    print(f"\nCrawling complete! Found {len(page_data)} page(s):\n")
-    for data in page_data.values():
-        if data is None:
-            continue
-        print(f"URL: {data['url']}")
-        print(f"  Heading: {data['heading']}")
-        print(f"  First Paragraph: {data['first_paragraph']}")
-        print(f"  Outgoing Links ({len(data['outgoing_links'])}):")
-        for link in data["outgoing_links"]:
-            print(f"    - {link}")
-        print(f"  Images ({len(data['image_urls'])}):")
-        for img in data["image_urls"]:
-            print(f"    - {img}")
-        print("-" * 40)
+    write_json_report(page_data)
+    print(f"Crawling complete! Saved {len(page_data)} pages to report.json")
 
 
 if __name__ == "__main__":
